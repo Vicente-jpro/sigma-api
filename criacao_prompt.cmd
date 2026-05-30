@@ -1,10 +1,10 @@
-Claro — aqui está um **prompt final consolidado, organizado e pronto para uso** para descrever o projeto **SIGMA** com bom contexto funcional e técnico.
+Claro — aqui está o **prompt completo com a seção 19 já ajustada** para aplicar essa mudança de modelagem no seu texto final.
 
 ---
 
 # Prompt final — SIGMA
 
-Quero desenvolver uma plataforma chamada **SIGMA (Sistema de Gestão e Monitorização de Aplicações)** no formato de **API REST**, com o objetivo de gerir clientes, softwares, licenças/chaves de produto, ativações, monitorização de uso autorizado, controlo anti-pirataria e envio de notificações.
+Quero desenvolver uma plataforma chamada **SIGMA (Sistema de Gestão e Monitorização de Aplicações)** no formato de **API REST**, com o objetivo de gerir clientes, softwares, licenças/chaves de produto, ativações, monitorização de uso autorizado, controlo anti-pirataria, auditoria administrativa e envio de notificações.
 
 ## 1. Objetivo do sistema
 O SIGMA deve permitir:
@@ -18,7 +18,9 @@ O SIGMA deve permitir:
 - monitorização diária do uso;
 - controlo anti-pirataria;
 - envio de alertas por email;
-- gestão de administradores.
+- gestão de administradores;
+- auditoria de ações administrativas;
+- rastreabilidade de alterações de status das licenças.
 
 O sistema será consumido por softwares cliente que devem consultar a API diariamente para validar a licença e obter autorização de uso.
 
@@ -33,6 +35,7 @@ Pode:
 - gerir chaves de produto;
 - ativar chaves de produto;
 - consultar informações de uso e status das licenças;
+- consultar histórico de alterações das chaves conforme permissões;
 - ter visão geral de clientes, softwares e licenças através de filtros e dashboards.
 
 ### 2.2 Super Administrador
@@ -44,6 +47,7 @@ Pode:
 - ativar chaves de produto;
 - visualizar pedidos de recuperação de palavra-passe;
 - alterar a palavra-passe de administradores;
+- visualizar histórico completo de alterações de status das chaves;
 - ter visão global do sistema com dashboards, filtros, métricas e auditoria.
 
 ---
@@ -111,7 +115,46 @@ A chave/licença deve ter apenas os seguintes status:
 
 ---
 
-## 6. Regra de instalação e ativação
+## 6. Histórico de alteração de status da chave/licença
+
+O SIGMA deve possuir uma entidade específica chamada **HistoricoStatusChave** para registar toda alteração de status da licença/chave.
+
+### Entidade `HistoricoStatusChave`
+Campos obrigatórios:
+
+- `id`
+- `chaveProduto`
+- `statusAnterior`
+- `statusNovo`
+- `alteradoPor` → utilizador que fez a alteração (`User`)
+- `dataAlteracao`
+- `motivoAlteracao`
+- `origemAlteracao` → `MANUAL`, `SISTEMA`, `ANTI_PIRATARIA`
+
+### Regras
+- toda alteração de status da `ChaveProduto` deve gerar um registo em `HistoricoStatusChave`;
+- quando a alteração for manual, `alteradoPor` deve ser preenchido;
+- quando a alteração for automática pelo sistema, `alteradoPor` pode ser `null`;
+- `motivoAlteracao` deve ser registado em alterações manuais relevantes;
+- o histórico deve servir para auditoria e controlo interno;
+- registos de histórico não devem ser apagados nem alterados por administradores comuns;
+- o Super Administrador deve ter acesso completo ao histórico;
+- alterações automáticas também devem ser registadas, incluindo:
+  - `PENDENTE -> ATIVA`
+  - `ATIVA -> EXPIRADA`
+  - `ATIVA -> BLOQUEADA`
+
+### Objetivo
+Garantir:
+- rastreabilidade;
+- responsabilização;
+- prova administrativa;
+- controlo sobre ações dos funcionários;
+- histórico íntegro de mudanças de licença.
+
+---
+
+## 7. Regra de instalação e ativação
 
 A chave do produto deve ser usada para ativar a instalação do software no computador do cliente.
 
@@ -131,7 +174,7 @@ A chave do produto deve ser usada para ativar a instalação do software no comp
 
 ---
 
-## 7. Controlo anti-pirataria e identificação da máquina
+## 8. Controlo anti-pirataria e identificação da máquina
 
 O controlo anti-pirataria deve usar **obrigatoriamente e unicamente** estes parâmetros:
 
@@ -155,11 +198,12 @@ O controlo anti-pirataria deve usar **obrigatoriamente e unicamente** estes par�
 - o sistema deve permitir no máximo **5 tentativas inválidas**;
 - cada tentativa inválida deve ser registada;
 - antes do bloqueio definitivo, o SIGMA deve enviar email de alerta ao cliente;
-- ao atingir o limite, a chave deve ser marcada como **BLOQUEADA**.
+- ao atingir o limite, a chave deve ser marcada como **BLOQUEADA**;
+- toda mudança automática para `BLOQUEADA` deve gerar registo em `HistoricoStatusChave` com `origemAlteracao = ANTI_PIRATARIA`.
 
 ---
 
-## 8. Consulta diária do cliente
+## 9. Consulta diária do cliente
 
 O software cliente deve consultar o SIGMA diariamente para validar o seu uso.
 
@@ -186,7 +230,7 @@ Essa consulta deve permitir:
 
 ---
 
-## 9. Expiração automática e controlo do scheduler
+## 10. Expiração automática e controlo do scheduler
 
 O SIGMA deve verificar diariamente as licenças ativas.
 
@@ -197,21 +241,23 @@ O SIGMA deve verificar diariamente as licenças ativas.
 - deve adicionar exatamente a quantidade de dias em falta para manter a integridade mesmo que o scheduler falhe;
 - quando `diasUsados` for igual ou maior que `totalDiasPermitidos`, a licença deve passar para `EXPIRADA`;
 - licenças expiradas não devem gerar novo token válido;
-- o software cliente deve ser informado da expiração.
+- o software cliente deve ser informado da expiração;
+- a transição para `EXPIRADA` deve ser registada em `HistoricoStatusChave` com `origemAlteracao = SISTEMA`.
 
 ### Requisito técnico
 - usar **ShedLock** para impedir execução concorrente do scheduler em múltiplas instâncias.
 
 ---
 
-## 10. Alertas por email
+## 11. Alertas por email
 
 O SIGMA deve enviar emails em formato **HTML**.
 
 ### Casos obrigatórios
 1. quando faltarem **15 dias** para a licença expirar;
 2. quando houver tentativa suspeita de uso em outro dispositivo;
-3. antes do bloqueio definitivo por tentativas inválidas.
+3. antes do bloqueio definitivo por tentativas inválidas;
+4. quando uma chave for ativada manualmente.
 
 ### Conteúdo mínimo do email
 - nome do cliente;
@@ -222,9 +268,24 @@ O SIGMA deve enviar emails em formato **HTML**.
 - descrição do alerta;
 - orientação para regularização.
 
+### Regra especial para ativação
+Quando uma chave mudar para `ATIVA`, o SIGMA deve enviar automaticamente email para:
+- o **Super Administrador**;
+- todos os **Administradores** ativos.
+
+O email deve informar:
+- quem fez a alteração;
+- cliente afetado;
+- software associado;
+- chave alterada;
+- status anterior;
+- status novo;
+- data/hora da alteração;
+- motivo da alteração, quando existir.
+
 ---
 
-## 11. Fluxo de envio de email com mensageria
+## 12. Fluxo de envio de email com mensageria
 
 O envio de email deve ser **assíncrono**, executado em **thread separada** da requisição principal.
 
@@ -233,7 +294,7 @@ O envio de email deve ser **assíncrono**, executado em **thread separada** da r
 2. publica a mensagem em um tópico Kafka;
 3. o consumidor lê a mensagem de forma assíncrona;
 4. o template HTML é processado com Thymeleaf;
-5. o email é enviado ao cliente.
+5. o email é enviado ao destinatário.
 
 ### Política de retry
 - o consumo/envio deve ter política de retry no Kafka;
@@ -242,7 +303,7 @@ O envio de email deve ser **assíncrono**, executado em **thread separada** da r
 
 ---
 
-## 12. Recuperação de palavra-passe
+## 13. Recuperação de palavra-passe
 
 A autenticação e autorização por perfil deve permitir recuperação de palavra-passe.
 
@@ -253,9 +314,9 @@ A autenticação e autorização por perfil deve permitir recuperação de palav
 
 ---
 
-## 13. Filtros e visão geral para Administrador e Super Administrador
+## 14. Filtros e visão geral para Administrador e Super Administrador
 
-O SIGMA deve fornecer filtros, pesquisa, paginação, ordenação e dashboards para visão geral de clientes, softwares e licenças.
+O SIGMA deve fornecer filtros, pesquisa, paginação, ordenação e dashboards para visão geral de clientes, softwares, licenças e histórico.
 
 ### Filtros para clientes
 - por `id`;
@@ -296,6 +357,16 @@ O SIGMA deve fornecer filtros, pesquisa, paginação, ordenação e dashboards p
 - por `instalacoesUsadas`;
 - por `quantidadeTentativasInvalidas`.
 
+### Filtros para histórico de status
+- por chave;
+- por cliente;
+- por software;
+- por `statusAnterior`;
+- por `statusNovo`;
+- por `alteradoPor`;
+- por `origemAlteracao`;
+- por intervalo de datas.
+
 ### View geral do Administrador
 O Administrador deve ter acesso a dashboard com:
 - total de clientes;
@@ -317,7 +388,8 @@ O Super Administrador deve ter acesso a visão global com:
 - ações auditadas dos administradores;
 - falhas de envio de email;
 - estatísticas globais de ativações;
-- chaves bloqueadas por suspeita de pirataria.
+- chaves bloqueadas por suspeita de pirataria;
+- histórico completo de mudanças de status.
 
 ### Recursos obrigatórios nas consultas
 - paginação;
@@ -329,7 +401,7 @@ O Super Administrador deve ter acesso a visão global com:
 
 ---
 
-## 14. Tecnologias obrigatórias
+## 15. Tecnologias obrigatórias
 
 Quero usar:
 
@@ -352,7 +424,7 @@ Quero usar:
 
 ---
 
-## 15. Entidades principais
+## 16. Entidades principais
 
 O sistema deve ter, no mínimo, as seguintes entidades:
 
@@ -360,6 +432,7 @@ O sistema deve ter, no mínimo, as seguintes entidades:
 - **Cliente**
 - **Software**
 - **ChaveProduto**
+- **HistoricoStatusChave**
 - **Ativacao**
 - **DispositivoCliente**
 - **HistoricoAutenticacao**
@@ -367,7 +440,7 @@ O sistema deve ter, no mínimo, as seguintes entidades:
 
 ---
 
-## 16. Requisitos técnicos esperados
+## 17. Requisitos técnicos esperados
 
 A solução deve incluir:
 
@@ -392,7 +465,7 @@ A solução deve incluir:
 
 ---
 
-## 17. O que quero que a solução proponha
+## 18. O que quero que a solução proponha
 
 Quero que a solução proponha:
 
@@ -413,16 +486,27 @@ Quero que a solução proponha:
 
 ---
 
-## 18. Observação de modelagem importante
-A entidade `ChaveProduto` deve conter apenas os campos definidos acima.  
-Os dados de identificação do dispositivo usados no controlo anti-pirataria devem ficar em uma entidade própria, como **DispositivoCliente**, associada à chave do produto e à instalação.
+## 19. Observação de modelagem importante
+
+A entidade `ChaveProduto` deve conter apenas os campos definidos na sua própria secção e **não deve armazenar dados de identificação do dispositivo**.
+
+Os dados usados no controlo anti-pirataria, como:
+- número de série de componentes físicos;
+- endereço MAC;
+- IP público real;
+
+devem ficar exclusivamente numa entidade própria chamada **DispositivoCliente**, associada à chave do produto e à instalação.
+
+A entidade `HistoricoStatusChave` deve ser usada exclusivamente para guardar o histórico de mudança de status da licença/chave, contendo apenas:
+- `id`
+- `chaveProduto`
+- `statusAnterior`
+- `statusNovo`
+- `alteradoPor`
+- `dataAlteracao`
+- `motivoAlteracao`
+- `origemAlteracao`
+
+Nenhuma informação de dispositivo deve ser armazenada em `HistoricoStatusChave`.
 
 ---
-
-Se quiser, no próximo passo eu posso transformar esse prompt final em um destes formatos:
-
-1. **especificação funcional completa**  
-2. **modelo de banco de dados PostgreSQL**  
-3. **lista de endpoints REST**  
-4. **arquitetura por camadas/pacotes em Spring Boot**  
-5. **prompt ainda mais profissional para usar com IA de geração de código**
