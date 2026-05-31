@@ -178,9 +178,8 @@ A chave do produto deve ser usada para ativar a instalação do software no comp
 
 O controlo anti-pirataria deve usar **obrigatoriamente e unicamente** estes parâmetros:
 
-- número de série de componentes físicos;
-- endereço MAC;
-- IP público real atribuído pelo ISP.
+- Serial da motherboard
+- MAC address
 
 ### Regras
 - esses dados devem ser preenchidos na **primeira autenticação de cada instalação**;
