@@ -53,12 +53,39 @@ Definir:
 - momento em que deve ser chamado pelo software cliente.
 
 ### 2. JSON de request
-Definir:
-- estrutura completa do payload enviado pelo software cliente;
-- campos obrigatórios;
-- exemplo JSON realista;
-- dados de dispositivo que devem ser enviados;
-- como identificar a chave/licença e o software.
+O endpoint de validação diária do software cliente deve receber **exatamente** o seguinte formato de request:
+
+```json
+{
+  "chaveProduto": "SIGMA-ABC-12345-XYZ",
+  "softwareId": 3,
+  "dispositivo": {
+    "serialMotherboard": "SN-PC-45879-XPT",
+    "macAddress": "00:1B:44:11:3A:B7"
+  },
+  "versaoApp": "2.4.1",
+  "instalacaoId": "550e8400-e29b-41d4-a716-446655440000",
+  "timestampCliente": "2026-06-05T06:00:00Z",
+  "nonce": "7f3b6b8e-5f41-4b15-b5b6-8f12f07e9f11"
+}
+```
+
+### Regras do request
+- `chaveProduto`: chave da licença a validar;
+- `softwareId`: identificador do software associado à licença;
+- `dispositivo.serialMotherboard`: identificador físico da máquina;
+- `dispositivo.macAddress`: endereço MAC da máquina;
+- `versaoApp`: versão instalada do software cliente;
+- `instalacaoId`: identificador único da instalação no dispositivo;
+- `timestampCliente`: data/hora da requisição enviada pelo cliente;
+- `nonce`: identificador único da requisição para evitar replay.
+
+### Requisitos importantes do request
+- o request deve seguir exatamente essa estrutura;
+- o objeto `dispositivo` deve conter apenas:
+  - `serialMotherboard`
+  - `macAddress`
+- o IP público real não precisa ser enviado no body se for capturado pelo backend a partir da requisição HTTP.
 
 ### 3. Regras de validação no backend
 Explicar a ordem ideal das validações, incluindo:
@@ -73,36 +100,43 @@ Explicar a ordem ideal das validações, incluindo:
 - incremento de tentativas inválidas;
 - bloqueio automático da chave quando necessário.
 
-### 4. JSON de response padronizado e minimalista
+### 4. JSON de response padronizado e enxuto
 Quero que seja definido **um único contrato de resposta JSON**, igual para todos os cenários, mudando apenas os valores dos campos.
 
-A resposta deve ser **minimalista** e conter apenas o necessário para o software cliente tomar decisão.
+A resposta deve seguir como referência esta **versão sólida da response**:
 
-Deve conter no mínimo:
-- `autorizado`
-- `statusAplicacao`
-- `codigoErro`
-- `mensagem`
-- `token`
-- `tokenType`
-- `expiraEm`
-- `servidorEm`
-- `licenca`
+```json
+{
+  "autorizado": true,
+  "statusAplicacao": "LIBERADA",
+  "mensagem": "Licença válida.",
+  "codigoErro": null,
+  "token": "<JWT_TOKEN>",
+  "tokenType": "Bearer",
+  "licenca": {
+    "id": 15,
+    "status": "ATIVA",
+    "diasUsados": 42,
+    "totalDiasPermitidos": 90,
+    "diasRestantes": 48
+  },
+  "dispositivo": {
+    "validado": true,
+    "tentativaSuspeita": false,
+    "status": "ATIVO"
+  },
+  "servidorEm": "2026-06-04T10:30:00Z"
+}
+```
 
-O objeto `licenca` também deve ser minimalista e conter apenas:
-- `id`
-- `status`
-- `diasRestantes`
-
-A resposta **não deve** incluir dados desnecessários como:
-- dados completos do cliente;
-- dados completos do software;
-- detalhes extensos do dispositivo;
-- informações administrativas;
-- metadados que não sejam usados diretamente pelo software cliente.
-
-A resposta **não deve ter estruturas diferentes para sucesso e erro**.  
-Deve existir **um único formato de response** para facilitar o consumo pelo software cliente.
+### Regras da response
+- deve existir **apenas um único formato de response**;
+- a estrutura deve ser a mesma para sucesso e erro;
+- o software cliente deve sempre desserializar o mesmo contrato;
+- a response deve ser enxuta e conter apenas os dados necessários para a aplicação cliente decidir o seu estado;
+- a response não deve incluir dados completos do cliente;
+- a response não deve incluir dados completos do software;
+- a response não deve incluir detalhes administrativos ou informações irrelevantes para o cliente.
 
 ### 5. Estados da aplicação no cliente
 Definir quais valores `statusAplicacao` podem existir, por exemplo:
@@ -128,7 +162,7 @@ Definir também um enum de `codigoErro`, por exemplo:
 Explicar quando cada código deve ser retornado.
 
 ### 7. Exemplos completos de resposta
-Gerar exemplos reais de resposta JSON **usando sempre o mesmo contrato minimalista**, para pelo menos estes cenários:
+Gerar exemplos reais de resposta JSON **usando sempre o mesmo contrato**, para pelo menos estes cenários:
 - licença válida;
 - licença expirada;
 - licença bloqueada por suspeita de pirataria;
@@ -148,8 +182,9 @@ Indicar quais códigos HTTP devem ser usados em cada cenário, como por exemplo:
 ### 9. DTOs sugeridos
 Propor os DTOs Java/Spring Boot para:
 - request;
-- response padronizado minimalista;
+- response padronizado;
 - objeto de licença resumido;
+- objeto de dispositivo resumido;
 - enum de status da aplicação;
 - enum de código de erro.
 
@@ -178,7 +213,12 @@ A resposta deve deixar explícito que:
   - `mensagem`
   - `token`
   - `licenca.status`
+  - `licenca.diasUsados`
+  - `licenca.totalDiasPermitidos`
   - `licenca.diasRestantes`
+  - `dispositivo.validado`
+  - `dispositivo.tentativaSuspeita`
+  - `dispositivo.status`
 
 ---
 
