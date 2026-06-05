@@ -106,7 +106,7 @@ A resposta deve seguir como referência esta **versão sólida da response**, ta
 ```json
 {
   "authorized": true,
-  "applicationStatus": "RELEASED",
+  "applicationStatus": "ALLOWED",
   "message": "Valid license.",
   "errorCode": null,
   "token": "<JWT_TOKEN>",
@@ -139,7 +139,7 @@ A resposta deve seguir como referência esta **versão sólida da response**, ta
 
 ### 5. Estados da aplicação no cliente
 Definir quais valores `applicationStatus` podem existir, por exemplo:
-- `RELEASED`
+- `ALLOWED`
 - `PENDING_ACTIVATION`
 - `BLOCKED`
 - `LIMITED_ACCESS`
