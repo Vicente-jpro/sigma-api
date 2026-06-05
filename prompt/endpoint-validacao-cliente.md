@@ -53,37 +53,37 @@ Definir:
 - momento em que deve ser chamado pelo software cliente.
 
 ### 2. JSON de request
-O endpoint de validação diária do software cliente deve receber **exatamente** o seguinte formato de request:
+O endpoint de validação diária do software cliente deve receber **exatamente** o seguinte formato de request, com **campos em inglês**:
 
 ```json
 {
-  "chaveProduto": "SIGMA-ABC-12345-XYZ",
+  "productKey": "SIGMA-ABC-12345-XYZ",
   "softwareId": 3,
-  "dispositivo": {
-    "serialMotherboard": "SN-PC-45879-XPT",
+  "device": {
+    "motherboardSerial": "SN-PC-45879-XPT",
     "macAddress": "00:1B:44:11:3A:B7"
   },
-  "versaoApp": "2.4.1",
+  "appVersion": "2.4.1",
   "installationId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-### Regras do request
-- `chaveProduto`: chave da licença a validar;
-- `softwareId`: identificador do software associado à licença;
-- `dispositivo.serialMotherboard`: identificador físico principal da máquina;
-- `dispositivo.macAddress`: endereço MAC da máquina;
-- `versaoApp`: versão instalada do software cliente;
-- `installationId`: identificador único e persistente da instalação no dispositivo.
+### Request rules
+- `productKey`: license key to validate;
+- `softwareId`: identifier of the software associated with the license;
+- `device.motherboardSerial`: primary physical machine identifier;
+- `device.macAddress`: machine MAC address;
+- `appVersion`: installed client software version;
+- `installationId`: unique and persistent identifier of the installation on the device.
 
-### Requisitos importantes do request
-- o request deve seguir exatamente essa estrutura;
-- o objeto `dispositivo` deve conter apenas:
-  - `serialMotherboard`
+### Important request requirements
+- the request must follow exactly this structure;
+- the `device` object must contain only:
+  - `motherboardSerial`
   - `macAddress`
-- o IP público real pode ser obtido pelo backend a partir da própria requisição HTTP;
-- não incluir campos desnecessários no payload;
-- o objetivo do request deve ser simplicidade, estabilidade do contrato e facilidade de consumo pelo software cliente.
+- the real public IP may be obtained by the backend from the HTTP request itself;
+- do not include unnecessary fields in the payload;
+- the goal of the request must be simplicity, contract stability, and ease of consumption by the client software.
 
 ### 3. Regras de validação no backend
 Explicar a ordem ideal das validações, incluindo:
@@ -101,29 +101,29 @@ Explicar a ordem ideal das validações, incluindo:
 ### 4. JSON de response padronizado e enxuto
 Quero que seja definido **um único contrato de resposta JSON**, igual para todos os cenários, mudando apenas os valores dos campos.
 
-A resposta deve seguir como referência esta **versão sólida da response**:
+A resposta deve seguir como referência esta **versão sólida da response**, também com **campos em inglês**:
 
 ```json
 {
-  "autorizado": true,
-  "statusAplicacao": "LIBERADA",
-  "mensagem": "Licença válida.",
-  "codigoErro": null,
+  "authorized": true,
+  "applicationStatus": "RELEASED",
+  "message": "Valid license.",
+  "errorCode": null,
   "token": "<JWT_TOKEN>",
   "tokenType": "Bearer",
-  "licenca": {
+  "license": {
     "id": 15,
-    "status": "ATIVA",
-    "diasUsados": 42,
-    "totalDiasPermitidos": 90,
-    "diasRestantes": 48
+    "status": "ACTIVE",
+    "daysUsed": 42,
+    "totalAllowedDays": 90,
+    "daysRemaining": 48
   },
-  "dispositivo": {
-    "validado": true,
-    "tentativaSuspeita": false,
-    "status": "ATIVO"
+  "device": {
+    "validated": true,
+    "suspiciousAttempt": false,
+    "status": "ACTIVE"
   },
-  "servidorEm": "2026-06-04T10:30:00Z"
+  "serverAt": "2026-06-04T10:30:00Z"
 }
 ```
 
@@ -134,28 +134,29 @@ A resposta deve seguir como referência esta **versão sólida da response**:
 - a response deve ser enxuta e conter apenas os dados necessários para a aplicação cliente decidir o seu estado;
 - a response não deve incluir dados completos do cliente;
 - a response não deve incluir dados completos do software;
-- a response não deve incluir detalhes administrativos ou informações irrelevantes para o cliente.
+- a response não deve incluir detalhes administrativos ou informações irrelevantes para o cliente;
+- usar nomenclatura técnica em inglês de forma consistente em todos os campos JSON.
 
 ### 5. Estados da aplicação no cliente
-Definir quais valores `statusAplicacao` podem existir, por exemplo:
-- `LIBERADA`
-- `AGUARDANDO_ATIVACAO`
-- `BLOQUEADA`
-- `ACESSO_LIMITADO`
-- `SOMENTE_LEITURA`
+Definir quais valores `applicationStatus` podem existir, por exemplo:
+- `RELEASED`
+- `PENDING_ACTIVATION`
+- `BLOCKED`
+- `LIMITED_ACCESS`
+- `READ_ONLY`
 
 Explicar como o software cliente deve reagir a cada um deles.
 
 ### 6. Código de erro padronizado
-Definir também um enum de `codigoErro`, por exemplo:
-- `LICENCA_EXPIRADA`
-- `LICENCA_BLOQUEADA`
-- `LICENCA_PENDENTE`
-- `CHAVE_NAO_ENCONTRADA`
-- `DISPOSITIVO_INVALIDO`
-- `LIMITE_INSTALACOES_ATINGIDO`
-- `SOFTWARE_NAO_ASSOCIADO`
-- `DADOS_INVALIDOS`
+Definir também um enum de `errorCode`, por exemplo:
+- `LICENSE_EXPIRED`
+- `LICENSE_BLOCKED`
+- `LICENSE_PENDING`
+- `KEY_NOT_FOUND`
+- `INVALID_DEVICE`
+- `INSTALLATION_LIMIT_REACHED`
+- `SOFTWARE_NOT_ASSOCIATED`
+- `INVALID_DATA`
 
 Explicar quando cada código deve ser retornado.
 
@@ -205,24 +206,24 @@ A resposta deve deixar explícito que:
 - existe **apenas um JSON de response padrão**;
 - o software cliente deve sempre desserializar a mesma estrutura;
 - o que muda entre os cenários são apenas os valores de:
-  - `autorizado`
-  - `statusAplicacao`
-  - `codigoErro`
-  - `mensagem`
+  - `authorized`
+  - `applicationStatus`
+  - `errorCode`
+  - `message`
   - `token`
-  - `licenca.status`
-  - `licenca.diasUsados`
-  - `licenca.totalDiasPermitidos`
-  - `licenca.diasRestantes`
-  - `dispositivo.validado`
-  - `dispositivo.tentativaSuspeita`
-  - `dispositivo.status`
+  - `license.status`
+  - `license.daysUsed`
+  - `license.totalAllowedDays`
+  - `license.daysRemaining`
+  - `device.validated`
+  - `device.suspiciousAttempt`
+  - `device.status`
 
 ---
 
 ## Requisitos importantes
 
-- a resposta deve ser em português;
+- a resposta deve ser em português, mas os **campos JSON devem ser em inglês**;
 - a modelagem deve respeitar que `ChaveProduto` não guarda dados do dispositivo;
 - a entidade `DispositivoCliente` é responsável pelos identificadores físicos e de rede;
 - a resposta deve ser estruturada com títulos, subtítulos, tabelas e blocos JSON;
