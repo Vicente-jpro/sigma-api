@@ -21,10 +21,10 @@ Existe uma entidade `ChaveProduto` com os seguintes campos:
 - `quantidadeTentativasInvalidas`
 
 Os status possíveis da chave/licença são:
-- `PENDENTE`
-- `ATIVA`
-- `EXPIRADA`
-- `BLOQUEADA`
+- `PENDING`
+- `ACTIVE`
+- `EXPIRED`
+- `BLOCKED`
 
 Os dados de identificação do dispositivo **não ficam em `ChaveProduto`**.  
 Esses dados devem ficar numa entidade própria chamada `DispositivoCliente`.
