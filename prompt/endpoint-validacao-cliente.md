@@ -64,28 +64,26 @@ O endpoint de validação diária do software cliente deve receber **exatamente*
     "macAddress": "00:1B:44:11:3A:B7"
   },
   "versaoApp": "2.4.1",
-  "instalacaoId": "550e8400-e29b-41d4-a716-446655440000",
-  "timestampCliente": "2026-06-05T06:00:00Z",
-  "nonce": "7f3b6b8e-5f41-4b15-b5b6-8f12f07e9f11"
+  "installationId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 ### Regras do request
 - `chaveProduto`: chave da licença a validar;
 - `softwareId`: identificador do software associado à licença;
-- `dispositivo.serialMotherboard`: identificador físico da máquina;
+- `dispositivo.serialMotherboard`: identificador físico principal da máquina;
 - `dispositivo.macAddress`: endereço MAC da máquina;
 - `versaoApp`: versão instalada do software cliente;
-- `instalacaoId`: identificador único da instalação no dispositivo;
-- `timestampCliente`: data/hora da requisição enviada pelo cliente;
-- `nonce`: identificador único da requisição para evitar replay.
+- `installationId`: identificador único e persistente da instalação no dispositivo.
 
 ### Requisitos importantes do request
 - o request deve seguir exatamente essa estrutura;
 - o objeto `dispositivo` deve conter apenas:
   - `serialMotherboard`
   - `macAddress`
-- o IP público real não precisa ser enviado no body se for capturado pelo backend a partir da requisição HTTP.
+- o IP público real pode ser obtido pelo backend a partir da própria requisição HTTP;
+- não incluir campos desnecessários no payload;
+- o objetivo do request deve ser simplicidade, estabilidade do contrato e facilidade de consumo pelo software cliente.
 
 ### 3. Regras de validação no backend
 Explicar a ordem ideal das validações, incluindo:
