@@ -98,10 +98,12 @@ Explicar a ordem ideal das validações, incluindo:
 - incremento de tentativas inválidas;
 - bloqueio automático da chave quando necessário.
 
-### 4. JSON de response padronizado e enxuto
+### 4. JSON de response padronizado e simplificado
 Quero que seja definido **um único contrato de resposta JSON**, igual para todos os cenários, mudando apenas os valores dos campos.
 
-A resposta deve seguir como referência esta **versão sólida da response**, também com **campos em inglês**:
+A resposta deve ser **minimalista** e conter apenas os atributos essenciais para o software cliente tomar decisão, evitando complexidade desnecessária.
+
+A resposta deve seguir como referência esta versão final simplificada, com **campos em inglês**:
 
 ```json
 {
@@ -110,20 +112,11 @@ A resposta deve seguir como referência esta **versão sólida da response**, ta
   "message": "Valid license.",
   "errorCode": null,
   "token": "<JWT_TOKEN>",
-  "tokenType": "Bearer",
+  "serverAt": "2026-06-04T10:30:00Z",
   "license": {
-    "id": 15,
     "status": "ACTIVE",
-    "daysUsed": 42,
-    "totalAllowedDays": 90,
     "daysRemaining": 48
-  },
-  "device": {
-    "validated": true,
-    "suspiciousAttempt": false,
-    "status": "ACTIVE"
-  },
-  "serverAt": "2026-06-04T10:30:00Z"
+  }
 }
 ```
 
@@ -131,10 +124,12 @@ A resposta deve seguir como referência esta **versão sólida da response**, ta
 - deve existir **apenas um único formato de response**;
 - a estrutura deve ser a mesma para sucesso e erro;
 - o software cliente deve sempre desserializar o mesmo contrato;
-- a response deve ser enxuta e conter apenas os dados necessários para a aplicação cliente decidir o seu estado;
+- a response deve conter apenas os dados essenciais para a aplicação cliente decidir o seu estado;
 - a response não deve incluir dados completos do cliente;
 - a response não deve incluir dados completos do software;
 - a response não deve incluir detalhes administrativos ou informações irrelevantes para o cliente;
+- a response não deve incluir detalhes internos do dispositivo se esses dados não alterarem a lógica do cliente;
+- a response não deve incluir campos redundantes como `tokenType` se o valor for sempre fixo;
 - usar nomenclatura técnica em inglês de forma consistente em todos os campos JSON.
 
 ### 5. Estados da aplicação no cliente
@@ -170,6 +165,8 @@ Gerar exemplos reais de resposta JSON **usando sempre o mesmo contrato**, para p
 - dispositivo inválido;
 - limite de instalações atingido.
 
+Em todos os exemplos, manter a response **simples e focada apenas nos atributos essenciais**.
+
 ### 8. HTTP status codes
 Indicar quais códigos HTTP devem ser usados em cada cenário, como por exemplo:
 - `200`
@@ -181,9 +178,8 @@ Indicar quais códigos HTTP devem ser usados em cada cenário, como por exemplo:
 ### 9. DTOs sugeridos
 Propor os DTOs Java/Spring Boot para:
 - request;
-- response padronizado;
+- response padronizado simplificado;
 - objeto de licença resumido;
-- objeto de dispositivo resumido;
 - enum de status da aplicação;
 - enum de código de erro.
 
@@ -211,13 +207,9 @@ A resposta deve deixar explícito que:
   - `errorCode`
   - `message`
   - `token`
+  - `serverAt`
   - `license.status`
-  - `license.daysUsed`
-  - `license.totalAllowedDays`
   - `license.daysRemaining`
-  - `device.validated`
-  - `device.suspiciousAttempt`
-  - `device.status`
 
 ---
 
@@ -227,4 +219,5 @@ A resposta deve deixar explícito que:
 - a modelagem deve respeitar que `ChaveProduto` não guarda dados do dispositivo;
 - a entidade `DispositivoCliente` é responsável pelos identificadores físicos e de rede;
 - a resposta deve ser estruturada com títulos, subtítulos, tabelas e blocos JSON;
-- quero algo com qualidade de documentação técnica para implementação imediata em **Java 21 + Spring Boot**.
+- quero algo com qualidade de documentação técnica para implementação imediata em **Java 21 + Spring Boot**;
+- priorizar simplicidade do contrato e reduzir ao máximo os atributos retornados ao cliente.
