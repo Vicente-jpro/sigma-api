@@ -1,6 +1,6 @@
 # Prompt final — endpoint de validação diária do software cliente
 
-Quero que definas de forma específica, técnica e pronta para implementação como deve funcionar o endpoint da API REST que será consumido pelo **software cliente instalado na máquina do cliente** para verificar o **estado da aplicação**, validar a licença e decidir se o software pode continuar a funcionar.
+Quero que definas de forma específica, técnica e pronta para implementação como deve funcionar o endpoint da API REST que será consumido pelo **software cliente instalado na máquina do cliente** para validar a licença e decidir se o software pode continuar a funcionar.
 
 ## Contexto do sistema
 
@@ -16,8 +16,8 @@ Existe uma entidade `ChaveProduto` com os seguintes campos:
 - `ultimaVerificacaoEm`
 - `cliente`
 - `software`
-- `limiteInstalacao`
-- `instalacoesUsadas`
+- `limiteMaxInstalacao`
+- `numeroInstalacao`
 - `quantidadeTentativasInvalidas`
 
 Os status possíveis da chave/licença são:
@@ -38,8 +38,10 @@ O software cliente deve consultar a API diariamente para:
 - validar a chave;
 - validar o dispositivo;
 - obter autorização de uso;
-- receber token JWT;
-- saber se a aplicação deve continuar ativa, ficar limitada ou ser bloqueada.
+- receber token JWT quando aplicável;
+- saber se a aplicação deve continuar ativa ou ser bloqueada.
+
+Se a API estiver temporariamente indisponível, o software cliente deve tolerar a indisponibilidade por até **1 semana**, permitindo uso temporário durante esse período com base na última validação bem-sucedida.
 
 ---
 
@@ -58,7 +60,6 @@ O endpoint de validação diária do software cliente deve receber **exatamente*
 ```json
 {
   "productKey": "SIGMA-ABC-12345-XYZ",
-  "softwareId": 3,
   "device": {
     "motherboardSerial": "SN-PC-45879-XPT",
     "macAddress": "00:1B:44:11:3A:B7"
@@ -70,7 +71,6 @@ O endpoint de validação diária do software cliente deve receber **exatamente*
 
 ### Request rules
 - `productKey`: license key to validate;
-- `softwareId`: identifier of the software associated with the license;
 - `device.motherboardSerial`: primary physical machine identifier;
 - `device.macAddress`: machine MAC address;
 - `appVersion`: installed client software version;
@@ -88,7 +88,6 @@ O endpoint de validação diária do software cliente deve receber **exatamente*
 ### 3. Regras de validação no backend
 Explicar a ordem ideal das validações, incluindo:
 - existência da chave;
-- associação com o software;
 - status da licença;
 - expiração;
 - validação do dispositivo;
@@ -97,6 +96,20 @@ Explicar a ordem ideal das validações, incluindo:
 - deteção de tentativa suspeita;
 - incremento de tentativas inválidas;
 - bloqueio automático da chave quando necessário.
+
+#### Regra explícita para nova instalação
+Uma instalação é considerada nova quando o `installationId` ainda não está registado para aquela licença.
+
+O backend só pode registar uma nova instalação quando:
+- `numeroInstalacao < limiteMaxInstalacao`
+
+Quando essa condição for verdadeira, a nova instalação pode ser criada e associada ao dispositivo informado.
+
+Quando essa condição não for verdadeira, o backend deve rejeitar a operação com erro de limite de instalações atingido.
+
+#### Diferença obrigatória entre erros
+- `INVALID_DEVICE`: o dispositivo informado não corresponde ao registo esperado da instalação/licença;
+- `INSTALLATION_LIMIT_REACHED`: a instalação seria válida como nova instalação, mas `numeroInstalacao` já atingiu `limiteMaxInstalacao`.
 
 ### 4. JSON de response padronizado e simplificado
 Quero que seja definido **um único contrato de resposta JSON**, igual para todos os cenários, mudando apenas os valores dos campos.
@@ -107,12 +120,9 @@ A resposta deve seguir como referência esta versão final simplificada, com **c
 
 ```json
 {
-  "authorized": true,
-  "applicationStatus": "ALLOWED",
   "message": "Valid license.",
   "errorCode": null,
   "token": "<JWT_TOKEN>",
-  "serverAt": "2026-06-04T10:30:00Z",
   "license": {
     "status": "ACTIVE",
     "daysRemaining": 48
@@ -129,18 +139,30 @@ A resposta deve seguir como referência esta versão final simplificada, com **c
 - a response não deve incluir dados completos do software;
 - a response não deve incluir detalhes administrativos ou informações irrelevantes para o cliente;
 - a response não deve incluir detalhes internos do dispositivo se esses dados não alterarem a lógica do cliente;
-- a response não deve incluir campos redundantes como `tokenType` se o valor for sempre fixo;
 - usar nomenclatura técnica em inglês de forma consistente em todos os campos JSON.
 
-### 5. Estados da aplicação no cliente
-Definir quais valores `applicationStatus` podem existir, por exemplo:
-- `ALLOWED`
-- `PENDING_ACTIVATION`
-- `BLOCKED`
-- `LIMITED_ACCESS`
-- `READ_ONLY`
+#### Regra explícita do token
+- `token` deve ser retornado apenas quando a licença permitir uso do software;
+- quando a licença não permitir uso, `token` deve ser `null`.
 
-Explicar como o software cliente deve reagir a cada um deles.
+#### Regras de nulabilidade
+- `message`: obrigatório em todos os cenários;
+- `errorCode`: deve ser `null` quando não houver erro;
+- `token`: deve ser `null` quando a licença não autorizar uso;
+- `license.status`: obrigatório em todos os cenários;
+- `license.daysRemaining`: obrigatório em todos os cenários e deve ser numérico;
+- `license.daysRemaining`: quando a licença estiver expirada, deve ser `0`, e não `null`.
+
+### 5. Regra de decisão no cliente usando `license.status`
+O software cliente deve basear a decisão de execução no valor de `license.status`.
+
+Regras esperadas:
+- `ACTIVE`: o software pode operar normalmente;
+- `PENDING`: o software não deve liberar uso normal;
+- `EXPIRED`: o software não deve liberar uso normal;
+- `BLOCKED`: o software deve bloquear uso imediatamente.
+
+Explicar claramente como o cliente deve reagir a cada um desses status.
 
 ### 6. Código de erro padronizado
 Definir também um enum de `errorCode`, por exemplo:
@@ -150,7 +172,6 @@ Definir também um enum de `errorCode`, por exemplo:
 - `KEY_NOT_FOUND`
 - `INVALID_DEVICE`
 - `INSTALLATION_LIMIT_REACHED`
-- `SOFTWARE_NOT_ASSOCIATED`
 - `INVALID_DATA`
 
 Explicar quando cada código deve ser retornado.
@@ -165,7 +186,14 @@ Gerar exemplos reais de resposta JSON **usando sempre o mesmo contrato**, para p
 - dispositivo inválido;
 - limite de instalações atingido.
 
-Em todos os exemplos, manter a response **simples e focada apenas nos atributos essenciais**.
+#### Regra obrigatória para os exemplos
+Todos os exemplos devem respeitar **exatamente** o contrato final simplificado.
+
+Isso significa que:
+- nenhum exemplo pode adicionar campos fora do contrato definido;
+- nenhum exemplo pode omitir campos obrigatórios do contrato;
+- todos os exemplos devem usar sempre a mesma estrutura JSON;
+- o que muda entre os exemplos deve ser apenas o valor dos campos já definidos no contrato.
 
 ### 8. HTTP status codes
 Indicar quais códigos HTTP devem ser usados em cada cenário, como por exemplo:
@@ -180,8 +208,8 @@ Propor os DTOs Java/Spring Boot para:
 - request;
 - response padronizado simplificado;
 - objeto de licença resumido;
-- enum de status da aplicação;
-- enum de código de erro.
+- enum de código de erro;
+- enum de status da licença.
 
 ### 10. OpenAPI/Swagger
 Apresentar também a especificação resumida do contrato OpenAPI desse endpoint:
@@ -195,19 +223,17 @@ Explicar claramente a lógica que o software cliente deve seguir após receber a
 - quando libera uso normal;
 - quando bloqueia;
 - quando mostra aviso;
-- quando entra em modo restrito.
+- quando permite uso temporário por indisponibilidade da API;
+- quando deve encerrar o período de tolerância offline de 1 semana.
 
 ### 12. Requisito de consistência
 A resposta deve deixar explícito que:
 - existe **apenas um JSON de response padrão**;
 - o software cliente deve sempre desserializar a mesma estrutura;
 - o que muda entre os cenários são apenas os valores de:
-  - `authorized`
-  - `applicationStatus`
-  - `errorCode`
   - `message`
+  - `errorCode`
   - `token`
-  - `serverAt`
   - `license.status`
   - `license.daysRemaining`
 
